@@ -1,0 +1,309 @@
+# Fiche d'état du projet — autorité de l'état depuis ADR-0020 (design §6.2).
+# La section statut du README est générée depuis cette fiche (sentinelles).
+#
+# INVARIANT DE PUBLICATION : ce fichier est public. Aucune instance de voyage
+# (dates absolues, composition du groupe, budget) ne doit y apparaître, ni ici
+# ni dans aucun fichier tracké. Voir kill_predicates.instance-leak.
+#
+# kind: product est conservé bien que la v1 vise un usage personnel — ce sont
+# précisément les champs réservés aux produits (hypothesis, promotion_criteria,
+# kill_predicates) qui portent le point de bascule de la troisième ville.
+schema_version: libre-ai.project.v1
+project: travel-agent
+repository: libre-ai/travel-agent
+kind: product
+layer: couche-1
+statement:
+  for: "un voyageur qui prépare un séjour long dans une ville qu'il ne connaît pas"
+  who_faces: >-
+    des planificateurs qui inventent des prix et des horaires, saturent le séjour
+    en appliquant une densité de court séjour à un long, et exigent un compte pour
+    lire ce qu'ils ont produit
+  enables: >-
+    obtenir un itinéraire rythmé pour la durée réelle du séjour et intégralement
+    chiffré sur des faits sourcés, sans qu'aucune donnée personnelle de voyage ne
+    quitte sa machine
+  producing:
+    - "un itinéraire partitionné en actes, chiffré en devise locale et devise d'origine"
+    - "un verdict de city-pass chiffré : fenêtre optimale et gain net absolu"
+    - "des packs de villes vérifiés, sourcés et périssables, réutilisables par d'autres"
+  without_depending_on:
+    - "aucune API commerciale, aucun hyperscaler US, aucun compte utilisateur"
+    - "aucune donnée de transport sous clause d'usage commercial ou révocable sans préavis"
+summary: >-
+  Planificateur d'itinéraires raisonnant sur des faits vérifiés, où le modèle
+  compose et le code oppose son veto, avec isolation stricte de l'instance de voyage.
+current_situation: >-
+  Spec approuvée et couche de raisonnement écrite, city-agnostic. Zéro code.
+  Le pack de la première ville porte sa structure mais son sous-ensemble
+  planifiable est vide : aucun itinéraire ne peut être chiffré tant qu'il l'est.
+  La v1 vise un usage personnel sur une à deux villes ; le passage à l'échelle
+  se tranche à la troisième, sur mesures et non sur projection.
+scope:
+  - "Optimisation de fenêtre de city-pass : le seul calcul qu'un modèle de langage rate."
+  - "Veto sur l'itinéraire proposé : rythme, complétude budgétaire, fraîcheur des faits."
+  - "Packs de villes versionnés, périssables et reversés en amont."
+  - "Isolation stricte de l'instance de voyage : elle ne quitte pas la machine du voyageur."
+non_goals:
+  - "Réservation, paiement, engagement : l'agent planifie, l'humain réserve."
+  - "Comptes utilisateurs et hébergement de données personnelles de voyage."
+  - "Toute API commerciale, tout hyperscaler US."
+  - "Génération de l'itinéraire par le code : composer la prose en TypeScript
+    réimplémenterait en moins bien ce que le modèle fait nativement. Le code
+    contraint, il ne rédige pas."
+  - "Surface de replanification en ligne : les plans de repli et les listes courtes
+    du gabarit de sortie couvrent le besoin hors-ligne. À réexaminer seulement si
+    l'usage réel démontre le contraire."
+  - "Ingestion GTFS et OpenTripPlanner en v1 — l'interface existe, l'adaptateur est différé."
+  - "Ingestion automatique de tier 1 avant la troisième ville — un pipeline coûte plus
+    que les quelques dizaines d'entrées qu'il produirait. Réexamen déclenché par la
+    phase scale-review, sur coût de curation mesuré."
+  - "Rust en v1 : l'optimiseur traite un séjour contre quelques dizaines d'items."
+dependencies:
+  - on: libre-ai/governance
+    why: "gabarit de flotte, gates de qualité et d'hygiène de contexte"
+    pinned: "consommée par SHA (workflows réutilisables)"
+maturity: specified
+confidence: medium
+exposure: spec-published
+freshness:
+  last_verified_on: "2026-08-18"
+scope_stability: stable
+hypothesis: >
+  Un planificateur où le modèle compose et où le code oppose un veto sur des
+  contraintes vérifiables produit des itinéraires plus honnêtes qu'un générateur
+  déterministe comme qu'un modèle laissé libre — et projeter l'instance de voyage
+  sur des propriétés de journée non identifiantes permet d'exposer le moteur sans
+  transmettre de donnée personnelle.
+evidence_required:
+  - "un itinéraire de référence composé sur une instance réelle non publiée,
+    intégralement chiffré, zéro fait non vérifié parmi les postes budgétés"
+  - "le veto rejette effectivement un itinéraire violant chacune de ses contraintes,
+    et accepte celui qui les respecte toutes"
+  - "gate d'isolation : un commit de test portant une instance de voyage est rejeté
+    en CI, le même commit sans elle est accepté"
+  - "preuve structurelle : aucun module de planification n'importe le contrat d'instance"
+  - "l'export statique reste intégralement consultable avec le réseau coupé"
+promotion_criteria:
+  - to: usable-verifiable
+    when: >-
+      un itinéraire complet est composé sur le trip de démonstration public, accepté
+      par le veto, et l'export statique passe ses tests réseau coupé en CI
+  - to: proven
+    when: >-
+      une seconde ville est ajoutée sans modifier prompts/system.md ni aucun
+      module de src/ — la preuve que la frontière logique/faits tient
+kill_predicates:
+  - id: instance-leak
+    predicate: >-
+      une instance de voyage (date absolue de séjour, composition du groupe, budget)
+      apparaît dans un fichier tracké, ou se reconstitue par jointure entre une sortie
+      publique et le calendrier d'un pack
+    source: tools/ci/check-trip-isolation.ts
+  - id: city-two-forks-the-prompt
+    predicate: "l'ajout d'une seconde ville exige de modifier prompts/system.md"
+    window: "à la première ville additionnelle"
+    source: docs/specs/2026-08-07-travel-agent-design.md
+  - id: stale-facts-shipped
+    predicate: >-
+      un itinéraire sort avec un fait de tier 2 dont la vérification ne couvre pas
+      la fenêtre du séjour planifié
+    source: tools/ci/check-freshness.ts
+  - id: injection-relay
+    predicate: >-
+      un contenu éditorial de tier 3 traverse la surface agentique sans neutralisation
+      et atteint le contexte d'un agent consommateur
+    source: tools/ci/check-tier3-sanitisation.ts
+  - id: curation-debt-unbounded
+    predicate: >-
+      le coût de re-vérification mesuré dépasse ce qu'un mainteneur unique absorbe,
+      sans que la contribution amont n'ait commencé à le réduire
+    window: "à la phase scale-review"
+    source: docs/curation/cost-log.md
+benchmark:
+  product: "planificateurs d'itinéraires IA (commerciaux, sur compte, données de destination fermées)"
+phases:
+  - id: sealed-repo
+    title: Socle publiable et prouvé étanche
+    note: >-
+      Aucune ligne ne se commite avant cette phase : après le premier envoi, la purge
+      d'une fuite devient une réécriture d'historique.
+    exit_criteria:
+      - id: leak-gate-demonstrated
+        text: >-
+          Le gate d'isolation est prouvé dans les deux sens : un commit de test portant
+          une instance de voyage échoue en CI, le même commit sans elle passe. Le
+          calendrier d'un pack ne le déclenche pas.
+        weight: 5
+        status: accepted
+        evidence:
+          date: "2026-08-18"
+          reference: docs/evidence/2026-08-18-sealed-repo.md
+      - id: no-instance-in-initial-commit
+        text: >-
+          Les documents hérités sont purgés de toute instance de voyage avant le commit
+          initial ; l'hygiène de contexte de flotte est verte.
+        weight: 4
+        status: accepted
+        evidence:
+          date: "2026-08-18"
+          reference: docs/evidence/2026-08-18-sealed-repo.md
+      - id: fleet-card-valid
+        text: "Cette fiche valide contre le schéma libre-ai.project.v1 de governance."
+        weight: 2
+        status: accepted
+        evidence:
+          date: "2026-08-18"
+          reference: docs/evidence/2026-08-18-sealed-repo.md
+      - id: dual-licence
+        text: "Apache-2.0 sur le code et ODbL sur data/ sont en place et distincts."
+        weight: 2
+        status: accepted
+        evidence:
+          date: "2026-08-18"
+          reference: docs/evidence/2026-08-18-sealed-repo.md
+  - id: curated-pack
+    title: Le pack devient chiffrable, complet et dé-singularisé
+    note: >-
+      Chemin critique. Travail de vérification humaine qu'aucune phase de code ne
+      débloque : sans lui, tout test aval est vert sans rien prouver. La contribution
+      amont démarre ici, et non en fin de parcours : elle est la seule sortie connue
+      de la dette de re-vérification.
+    exit_criteria:
+      - id: planning-subset-verified
+        text: >-
+          Le sous-ensemble planifiable est peuplé : chaque entrée porte prix d'entrée,
+          couverture du pass, horaires, durée type, district, source et date de vérification.
+        weight: 5
+        status: pending
+      - id: budget-lines-complete
+        text: >-
+          Tous les postes que le budget doit ventiler existent dans le modèle de données,
+          sans quoi le critère « zéro fait non vérifié parmi les postes budgétés » est
+          inatteignable. L'hébergement y entre comme fourchette de prix par quartier et par
+          type, qui est un fait de ville ; le logement réellement retenu reste dans
+          l'instance — c'est l'information la plus identifiante d'un séjour, celle qui dit
+          non seulement quand le domicile est vide mais où se trouve son occupant.
+        weight: 5
+        status: pending
+      - id: climatology-not-forecast
+        text: >-
+          Le pack porte les normales climatiques par mois — jours de pluie, températures,
+          heures de clarté. Aucune prévision n'étant exploitable au-delà de dix jours,
+          c'est la statistique qui alimente les plans de repli, pas une API météo.
+        weight: 3
+        status: pending
+      - id: calendar-year-round
+        text: >-
+          Le calendrier couvre au moins quatre événements structurants répartis sur
+          l'année, et non les seuls événements d'une fenêtre de séjour donnée.
+        weight: 3
+        status: pending
+      - id: upstream-contribution-started
+        text: >-
+          Les premiers faits curés sont reversés en amont, et la part reversée est
+          mesurée : le pack est le cache local d'un commun, pas une base privée.
+        weight: 4
+        status: pending
+  - id: typed-core
+    title: Pack et instance deviennent des données de programme
+    exit_criteria:
+      - id: schema-refusal
+        text: >-
+          Un pack privé d'une source obligatoire est refusé au chargement, avec le
+          chemin du champ fautif dans le message.
+        weight: 3
+        status: pending
+      - id: skeleton-non-joinable
+        text: >-
+          La projection instance → squelette est pure et testée, et le squelette ne
+          porte que des propriétés de journée non identifiantes : jamais un décalage
+          vers un événement nommé, qui redeviendrait une date absolue par jointure
+          avec le calendrier public du pack.
+        weight: 5
+        status: pending
+      - id: two-contracts-versioned
+        text: >-
+          La couche de raisonnement et le pack portent une version de contrat explicite.
+          Les autres artefacts en prennent une le jour où ils traversent une frontière,
+          pas par anticipation.
+        weight: 3
+        status: pending
+  - id: planning-engine
+    title: Le calcul que le modèle rate, et le veto qu'il ne s'applique pas
+    note: >-
+      Le code ne compose pas d'itinéraire. Il calcule ce qu'un modèle de langage
+      calcule mal, et refuse ce qui viole une contrainte vérifiable.
+    exit_criteria:
+      - id: pass-window-verdict
+        text: >-
+          Sur un pack peuplé, la fenêtre optimale sort avec sa valeur captée, le prix
+          du pass et le gain net absolu, plus le coût des jours restants.
+        weight: 5
+        status: pending
+      - id: pass-edge-cases
+        text: >-
+          Les cinq cas limites du pass sont verts sur fixtures synthétiques : séjour
+          plus court que le pass, plus long, aucune fenêtre rentable, fenêtres à valeur
+          égale, ensemble vide.
+        weight: 4
+        status: pending
+      - id: veto-rejects-and-accepts
+        text: >-
+          Le veto rejette un itinéraire pour chacune de ses contraintes prise isolément
+          — quota de journées ouvertes, poste budgété non sourcé, fait ne couvrant pas
+          la fenêtre, journées denses consécutives — et accepte celui qui les respecte.
+        weight: 5
+        status: pending
+      - id: engine-cannot-see-instance
+        text: >-
+          Preuve structurelle : aucun module de calcul ou de veto n'importe le contrat
+          d'instance. Ces modules sont incapables de fuiter par construction.
+        weight: 5
+        status: pending
+  - id: surfaces
+    title: Consommable hors-ligne et par un agent, sans fuite
+    note: "Deux surfaces : production agentique et consultation statique. Pas de troisième."
+    exit_criteria:
+      - id: offline-export
+        text: >-
+          L'export statique est intégralement consultable réseau coupé, plans de repli
+          et listes courtes compris, et le test le vérifie en coupant réellement le réseau.
+        weight: 5
+        status: pending
+      - id: agent-surface-non-identifying
+        text: >-
+          Les opérations exposées à un agent tiers ne reçoivent que des propriétés de
+          journée non identifiantes ; seule la composition finale voit un calendrier
+          absolu, et jamais hors de la machine.
+        weight: 5
+        status: pending
+      - id: tier3-sanitised
+        text: >-
+          Le contenu éditorial de tier 3 est neutralisé avant de traverser la surface
+          agentique ; un test d'injection le prouve.
+        weight: 4
+        status: pending
+  - id: durability
+    title: Ni mensonge dans le temps, ni dette non mesurée
+    exit_criteria:
+      - id: freshness-relative-to-stay
+        text: >-
+          Deux gates distincts : la CI refuse un pack structurellement périmé, et la
+          composition refuse de sortir un itinéraire dont un fait budgété ne couvre pas
+          la fenêtre du séjour. Un fait récent mais hors saison ne doit pas passer.
+        weight: 5
+        status: pending
+      - id: prompt-regression-gate
+        text: >-
+          Modifier la couche de raisonnement sans incrémenter sa version casse le build,
+          via des sorties de référence figées par version.
+        weight: 4
+        status: pending
+      - id: scale-inputs-measured
+        text: >-
+          Le coût réel de curation, le taux de péremption observé et la part de faits
+          absorbés en amont sont mesurés et consignés — les trois entrées du réexamen
+          de la troisième ville, qui se tranche sur chiffres et non sur projection.
+        weight: 3
+        status: pending

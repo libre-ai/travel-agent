@@ -1,0 +1,44 @@
+name: Trip hygiene
+
+# Refuses any tracked file that carries — or lets one reconstruct — a real trip
+# instance: stay window, party, budget, lodging. See tools/ci/check-trip-isolation.ts
+# for why the rules are structural before they are lexical, and why the literal
+# fragments are stored base64-encoded rather than in clear text.
+#
+# This job installs no dependency on purpose. The gate imports nothing outside
+# the standard runtime, so it stays green when `bun install` cannot reach the
+# network — a privacy gate that a registry outage can silence is not a gate.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  trip-isolation:
+    name: No trip instance in tracked files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Install archived Bun toolchain
+        env:
+          BUN_ARCHIVE_URL: https://github.com/libre-ai/governance/releases/download/toolchain-bun-1.4.0-canary.1-57f349f63/bun-linux-x64.zip
+          BUN_ARCHIVE_SHA256: 83144e2542c33aaae541cf16b42f8cf1c55c3b94c5395fc776417fa27e95bcbf
+        run: |
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/bun.zip" "$BUN_ARCHIVE_URL"
+          echo "$BUN_ARCHIVE_SHA256  $RUNNER_TEMP/bun.zip" | sha256sum --check --strict
+          unzip -q "$RUNNER_TEMP/bun.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/bun-linux-x64" >> "$GITHUB_PATH"
+
+      - name: Trip isolation gate
+        run: bun tools/ci/check-trip-isolation.ts
+
+      - name: Gate self-tests
+        # Proves both directions, including the negative that matters most:
+        # a legitimate pack calendar must not trigger the gate.
+        run: bun test tests/trip-isolation.test.ts

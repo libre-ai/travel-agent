@@ -1,0 +1,22 @@
+name: Context hygiene
+
+# Fleet gate: blocks private identifiers and machine-local paths from entering
+# the public tree. Deny patterns live base64-encoded in the reusable workflow so
+# it never carries them in readable form. Consumed pinned by SHA, never
+# duplicated — the template is owned by governance.
+#
+# Complementary to trip-hygiene.yml: this one guards the boundary between
+# ecosystems, that one guards the boundary between a city and a traveller.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  context-hygiene:
+    uses: libre-ai/governance/.github/workflows/reusable-context-hygiene.yml@f767f2fb96c93e86eb6451d4dd1e80d250da2027
